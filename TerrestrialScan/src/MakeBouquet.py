@@ -8,9 +8,10 @@ from Components.Label import Label
 from Components.Pixmap import Pixmap
 from Components.ProgressBar import ProgressBar
 from Components.Sources.Progress import Progress
+from Components.Sources.FrontendStatus import FrontendStatus
 from Components.config import config
 
-from enigma import eDVBResourceManager, eTimer, eDVBDB
+from enigma import eDVBResourceManager, eTimer, eDVBDB, eDVBFrontendParametersTerrestrial
 
 import os
 import sys
@@ -26,7 +27,7 @@ except:
 
 from TerrestrialScan import setParams, setParamsFe
 
-from Plugins.SystemPlugins.AutoBouquetsMaker.scanner import dvbreader
+import dvbreader
 
 class MakeBouquet(Screen):
 	skin = """
@@ -59,11 +60,17 @@ class MakeBouquet(Screen):
 		self.bouquetName = _('Terrestrial')
 		self.namespace_complete_terrestrial = not (config.usage.subnetwork_terrestrial.value if hasattr(config.usage, "subnetwork_terrestrial") else True) # config.usage.subnetwork not available in all images
 
+		self.terrestrailXmlFilename = "terrestrial.xml"
+
+		self.frontend = None
+		self.rawchannel = None
+
 		self["background"] = Pixmap()
 		self["action"] = Label(_("Starting scanner"))
 		self["status"] = Label("")
 		self["progress"] = ProgressBar()
 		self["progress_text"] = Progress()
+		self["Frontend"] = FrontendStatus(frontend_source = lambda : self.frontend, update_interval = 100)
 
 		self["actions"] = ActionMap(["SetupActions"],
 		{
@@ -73,6 +80,8 @@ class MakeBouquet(Screen):
 		self.selectedNIM = -1
 		self.transponders_unique = {}
 		self.FTA_only = False
+		self.makebouquet = True
+		self.makexmlfile = False
 		if args:
 			if "feid" in args:
 				self.selectedNIM = args["feid"]
@@ -80,13 +89,14 @@ class MakeBouquet(Screen):
 				self.transponders_unique = args["transponders_unique"]
 			if "FTA_only" in args:
 				self.FTA_only = args["FTA_only"]
+			if "makebouquet" in args:
+				self.makebouquet = args["makebouquet"]
+			if "makexmlfile" in args:
+				self.makexmlfile = args["makexmlfile"]
 
 		self.tsidOnidKeys = self.transponders_unique.keys()
 		self.index = 0
 		self.lockTimeout = 50 	# 100ms for tick - 5 sec
-
-		self.frontend = None
-		self.rawchannel = None
 
 		self.onClose.append(self.__onClose)
 		self.onFirstExecBegin.append(self.firstExec)
@@ -130,7 +140,9 @@ class MakeBouquet(Screen):
 		else:
 			if len(self.transponders_unique) > 0:
 				self.corelate_data()
-				if len(self.services_dict) > 0:
+				if self.makexmlfile:
+					self.createTerrestrialXml()
+				if self.makebouquet and len(self.services_dict) > 0:
 					self.createBouquet()
 				answer = [self.selectedNIM, self.transponders_unique]
 			else:
@@ -181,7 +193,8 @@ class MakeBouquet(Screen):
 		self.dict = {}
 		self.frontend.getFrontendStatus(self.dict)
 		if self.dict["tuner_state"] == "TUNING":
-			print "[MakeBouquet][checkTunerLock] TUNING"
+			if self.lockcounter < 1: # only show this once in the log per retune event
+				print "[MakeBouquet][checkTunerLock] TUNING"
 		elif self.dict["tuner_state"] == "LOCKED":
 			print "[MakeBouquet][checkTunerLock] TUNER LOCKED"
 			self["action"].setText(_("Reading SI tables on %s MHz") % str(self.transponder["frequency"]/1000000))
@@ -348,12 +361,12 @@ class MakeBouquet(Screen):
 		if transponders:
 
 			if transponders[0]["descriptor_tag"] == 0x5A: # DVB-T
-				self.transponder["system"] = 0
+				self.transponder["system"] = eDVBFrontendParametersTerrestrial.System_DVB_T
 			else: # must be DVB-T2
-				self.transponder["system"] = 1
+				self.transponder["system"] = eDVBFrontendParametersTerrestrial.System_DVB_T2
 
-			if "frequency" in transponders[0] and abs((transponders[0]["frequency"]*10) - self.transponder["frequency"]) < 1000000:
-				print "[MakeBouquet][readNIT] updating transponder frequency from %d MHz to %d MHz" % (self.transponder["frequency"]/1000000, transponders[0]["frequency"]/100000)
+			if "frequency" in transponders[0] and abs((transponders[0]["frequency"]*10) - self.transponder["frequency"]) < 1000000 and self.transponder["frequency"] != transponders[0]["frequency"]*10:
+				print "[MakeBouquet][readNIT] updating transponder frequency from %.03f MHz to %.03f MHz" % (self.transponder["frequency"]/1000000, transponders[0]["frequency"]/100000)
 				self.transponder["frequency"] = transponders[0]["frequency"]*10
 
 		LCNs = [t for t in nit_current_content if "descriptor_tag" in t and t["descriptor_tag"] == 0x83 and t["original_network_id"] == self.transponder["onid"]]
@@ -444,6 +457,27 @@ class MakeBouquet(Screen):
 	def getNamespace(self, service):
 		namespacekey = "%x:%x" % (service["transport_stream_id"], service["original_network_id"])
 		return self.namespace_dict[namespacekey] if namespacekey in self.namespace_dict else 0xEEEE0000
+
+	def createTerrestrialXml(self):
+		xml = ['<?xml version="1.0" encoding="UTF-8"?>\n']
+		xml.append('<!-- File created on %s with the TerrestrialScan plugin -->\n' % (time.strftime("%A, %d of %B %Y, %H:%M:%S")))
+		xml.append('<locations>\n')
+		xml.append('\t<terrestrial name="My local region (Europe DVB-T/T2)" flags="5">\n')
+		for tsidOnidKey in self.iterateUniqueTranspondersByFrequency():
+			transponder = self.transponders_unique[tsidOnidKey]
+			xml.append('\t\t<transponder centre_frequency="%d" system="%d" bandwidth="%d" constellation="3"/>\n' % (transponder["frequency"], transponder["system"], transponder["bandwidth"] == 7 and 1 or 0))
+		xml.append('\t</terrestrial>\n')
+		xml.append('</locations>')
+
+		xmlFile = open(self.path + "/" + self.terrestrailXmlFilename, "w")
+		xmlFile.write(''.join(xml))
+		xmlFile.close()
+		del xml
+	
+	def iterateUniqueTranspondersByFrequency(self):
+		# returns an iterator list for self.transponders_unique in frequency order ascending
+		sort_list = [(x[0], x[1]["frequency"]) for x in self.transponders_unique.items()]
+		return [x[0] for x in sorted(sort_list, key=lambda listItem: listItem[1])]
 
 	def showError(self, message):
 		question = self.session.open(MessageBox, message, MessageBox.TYPE_ERROR)
