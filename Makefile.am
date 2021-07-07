@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = Blindscan DLNABrowser DLNAServer StreamTV 3GModemManager TunerServer OnDemand Fempa LCD4linux RemoteChannelStreamConverter BTDevicesManager SatipClient TerrestrialScan ChannelsImporter ABMCustomMixImporter
+SUBDIRS = Blindscan DLNABrowser DLNAServer StreamTV 3GModemManager TunerServer OnDemand Fempa LCD4linux RemoteChannelStreamConverter BTDevicesManager SatipClient TerrestrialScan ChannelsImporter ABMCustomMixImporter xmlUpdate
 
 if MIPSEL
 SUBDIRS += WirelessAccessPoint
@@ -24,6 +24,10 @@ endif
 
 if DREAMBOX
 SUBDIRS +=  DMBlindscan
+endif
+
+if DINOBOT
+SUBDIRS += MultiTransCodingSetup
 endif
 
 if XTREND
@@ -311,11 +315,7 @@ if VUPLUS
 SUBDIRS += HbbTV AudioEffect
 endif
 
-if WETEK
-SUBDIRS += RCUSelect ReZap
-endif
-
-if HARDKERNEL
+if HAVE_AMLPLUGINS
 SUBDIRS += RCUSelect ReZap
 endif
 

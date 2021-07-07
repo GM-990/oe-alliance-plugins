@@ -24,8 +24,6 @@ from enigma import eTimer, eDVBFrontendParametersSatellite, eComponentScan, eCon
 import os
 from boxbranding import getBoxType, getImageVersion, getImageBuild, getBrandOEM
 
-import dmmBlindScan
-
 #used for the XML file
 from time import strftime, time
 
@@ -710,7 +708,7 @@ class Blindscan(ConfigListScreen, Screen):
 		elif getBrandOEM() == 'azbox':
 			cmd = "avl_azbox_blindscan %d %d %d %d %d %d %d %d" % (temp_start_int_freq, temp_end_int_freq, self.blindscan_start_symbol.value, self.blindscan_stop_symbol.value, tab_pol[pol], tab_hilow[band], self.feid, self.getNimSocket(self.feid)) # commented out by Huevos cmd = "avl_azbox_blindscan %d %d %d %d %d %d %d %d" % (self.blindscan_start_frequency.value/1000000, self.blindscan_stop_frequency.value/1000000, self.blindscan_start_symbol.value, self.blindscan_stop_symbol.value, tab_pol[pol], tab_hilow[band], self.feid, self.getNimSocket(self.feid))
 			self.polsave=tab_pol[pol] # Data returned by the binary is not good we must save polarisation
-		elif getBrandOEM() == 'xcore':
+		elif getBrandOEM() == 'xcore' or getBrandOEM() == 'edision':
 			cmd = "blindscan --start=%d --stop=%d --min=%d --max=%d --slot=%d --i2c=%d" % (temp_start_int_freq, temp_end_int_freq, self.blindscan_start_symbol.value, self.blindscan_stop_symbol.value, self.feid, self.getNimSocket(self.feid))
 			if tab_pol[pol]:
 				cmd += " --vertical"
@@ -718,6 +716,10 @@ class Blindscan(ConfigListScreen, Screen):
 				cmd += " --cband"
 			elif tab_hilow[band]:
 				cmd += " --high"
+		elif getBrandOEM() == 'clap':
+			self.frontend and self.frontend.closeFrontend()
+			cmd = "clap-blindscan %d %d %d %d %d %d %d %d %d %d" % (temp_start_int_freq, temp_end_int_freq, self.blindscan_start_symbol.value, self.blindscan_stop_symbol.value, tab_pol[pol], tab_hilow[band], self.feid, self.getNimSocket(self.feid), self.is_c_band_scan,orb[0])
+
 		print "[Blindscan][prepareScanData] prepared command: [%s]" % (cmd)
 
 		self.thisRun = [] # used to check result corresponds with values used above
@@ -880,6 +882,24 @@ class Blindscan(ConfigListScreen, Screen):
 						"FEC_8_9" : parm.FEC_8_9,
 						"FEC_3_5" : parm.FEC_3_5,
 						"FEC_9_10" : parm.FEC_9_10,
+						"FEC_13_45" : parm.FEC_Auto,
+						"FEC_9_20" : parm.FEC_Auto,
+						"FEC_11_20" : parm.FEC_Auto,
+						"FEC_23_36" : parm.FEC_Auto,
+						"FEC_25_36" : parm.FEC_Auto,
+						"FEC_13_18" : parm.FEC_Auto,
+						"FEC_26_45" : parm.FEC_Auto,
+						"FEC_28_45" : parm.FEC_Auto,
+						"FEC_7_9" : parm.FEC_Auto,
+						"FEC_77_90" : parm.FEC_Auto,
+						"FEC_32_45" : parm.FEC_Auto,
+						"FEC_11_15" : parm.FEC_Auto,
+						"FEC_1_2_L" : parm.FEC_Auto,
+						"FEC_8_15_L" : parm.FEC_Auto,
+						"FEC_3_5_L" : parm.FEC_Auto,
+						"FEC_2_3_L" : parm.FEC_Auto,
+						"FEC_5_9_L" : parm.FEC_Auto,
+						"FEC_26_45_L" : parm.FEC_Auto,
 						"FEC_NONE" : parm.FEC_None}
 					roll ={ "ROLLOFF_20" : parm.RollOff_alpha_0_20,
 						"ROLLOFF_25" : parm.RollOff_alpha_0_25,
@@ -1314,7 +1334,14 @@ def BlindscanCallback(close, answer):
 		close(True)
 
 def BlindscanMain(session, close=None, **kwargs):
-	if 'Supports_Blind_Scan: yes' in open('/proc/bus/nim_sockets').read():
+	have_Support_Blindscan = False
+	try:
+		if 'Supports_Blind_Scan: yes' in open('/proc/bus/nim_sockets').read():
+			have_Support_Blindscan = True
+	except:
+		pass
+	if have_Support_Blindscan:
+		import dmmBlindScan
 		session.openWithCallback(boundFunction(BlindscanCallback, close), dmmBlindScan.DmmBlindscan)
 	else:
 		session.openWithCallback(boundFunction(BlindscanCallback, close), Blindscan)
