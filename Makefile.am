@@ -22,6 +22,10 @@ if DAGS7252
 SUBDIRS += TransCodingSetup
 endif
 
+if DAGSMV200
+SUBDIRS += MultiTransCodingSetup
+endif
+
 if DREAMBOX
 SUBDIRS +=  DMBlindscan
 endif
@@ -266,6 +270,10 @@ if HD61
 SUBDIRS += MultiTransCodingSetup
 endif
 
+if PULSE4K
+SUBDIRS += MultiTransCodingSetup
+endif
+
 if I55PLUS
 SUBDIRS += MultiTransCodingSetup
 endif
@@ -335,6 +343,10 @@ SUBDIRS += MultiTransCodingSetup
 endif
 
 if MULTIBOX
+SUBDIRS += MultiTransCodingSetup
+endif
+
+if MULTIBOXSE
 SUBDIRS += MultiTransCodingSetup
 endif
 

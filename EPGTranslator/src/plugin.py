@@ -1,4 +1,4 @@
-s# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 #
 # So we can use Py3 print style
 from __future__ import print_function
@@ -6,8 +6,7 @@ from __future__ import print_function
 # for localized messages
 from . import _
 
-
-EPGTrans_vers = "2.02-rc2"
+EPGTrans_vers = "2.03-release"
 
 from Components.ActionMap import ActionMap
 from Components.config import (config, configfile, ConfigSubsection,
@@ -30,7 +29,7 @@ from Screens.Screen import Screen
 from Screens.VirtualKeyBoard import VirtualKeyBoard
 from Tools.Directories import fileExists
 
-import sys, re, time, os, traceback, inspect
+import sys, re, time, os, traceback
 
 from .AutoflushCache import AutoflushCache
 from .HTML5Entities import name2codepoint
@@ -119,6 +118,7 @@ CfgPlTr.source = ConfigSelection(default='auto',
 # Destination has no auto...
 #
 CfgPlTr.destination = ConfigSelection(default='en', choices=langs)
+CfgPlTr.start_EV_trans = ConfigBoolean(default=False)
 CfgPlTr.timeout_hr = ConfigInteger(0, (0, 350))
 CfgPlTr.showsource = ConfigSelection(default='yes',
  choices=[('yes', _('Yes')), ('no', _('No'))])
@@ -247,6 +247,15 @@ for c in ([" ", "\n", "\t"]):   # Actually .<ws>
 #
 def DO_translation(text, source, dest):     # source, dest are langs
     global enc_wspace, enc_space
+
+# It seems that this incoming text may contain some EIT CR/LF sequences
+# (see estring.cpp)
+# So convert these to newlines now - they can end up being translated
+# into other (displayed) characters
+# Add any others to this list as required...
+#
+    for rpl in ("\xc2\x8a", "\xee\x82\x8a"):
+        text = text.replace(rpl, "\n")
 
     enc_text = quote(text)
     enc_len = len(enc_text)
@@ -448,7 +457,7 @@ def EPGdata_translate(title, descr, start, duration, uref):
                 if limit < to:  to = limit
             AfCache.add(uref, (t_title, t_descr), abs_timeout=to)
         except Exception as e:  # Use originals on a failure...
-            print("[EPGTranslator-Plugin] translateEPG error:", e)
+            print('[EPGTranslator-Plugin] translateEPG, %s: "%s"' % (type(e).__name__, e))
             if (CfgPlTr.showtrace.getValue()): traceback.print_exc()
             (t_title, t_descr) = (title, descr)
 
@@ -464,11 +473,10 @@ def make_uref(sv_id, sv_name):
 
 # ==================================================================
 # We need to know where we are to find the files relative to this
-# script. Can't do this until we've defined a piece of code/object.
+# script.
 #
-plugin_location = os.path.dirname(inspect.getsourcefile(applySkinVars))
+plugin_location = os.path.dirname(os.path.realpath(__file__))
 def lang_flag(lang):    # Where the language images are
-    global plugin_location
     return plugin_location + '/pic/flag/' + lang  + '.png'
 
 # -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
@@ -478,31 +486,38 @@ class translatorConfig(ConfigListScreen, Screen):
 
 # ==================================================================
     def __init__(self, session):
-        global plugin_location
-
         self.dict = {'plug_loc': plugin_location}
         self.skin = applySkinVars(MySD.translatorConfig_skin, self.dict)
         Screen.__init__(self, session)
         self['flag'] = Pixmap()
         list = [
-            getConfigListEntry(_('Source Language:'), CfgPlTr.source),
-            getConfigListEntry(_('Destination Language:'), CfgPlTr.destination),
-            getConfigListEntry(_('Cache timeout hours (0 == while valid):'), CfgPlTr.timeout_hr),
-            getConfigListEntry(_('Show Source EPG:'), CfgPlTr.showsource),
-            getConfigListEntry(_('Show traceback in errors:'), CfgPlTr.showtrace),
+            getConfigListEntry(_('Source Language:'), CfgPlTr.source, _("Select the source langauge to be translated, or select 'Detect Langauge' and the translator will attempt to automatically detect the source language.")),
+            getConfigListEntry(_('Destination Language:'), CfgPlTr.destination, _("This is the language the source text will be translated into.")),
+            getConfigListEntry(_('EventViews open translated:'), CfgPlTr.start_EV_trans, _("When an EventView window is opened, start with the translated text.")),
+            getConfigListEntry(_('Cache timeout hours (0 == while valid):'), CfgPlTr.timeout_hr, _("Translations are cached to avoid unnecessary re-translation. This is the number of hours the translation will survive in the cache before deletion. Select '0' for the cache entry to expire once the program has completed.")),
+            getConfigListEntry(_('Show Source EPG:'), CfgPlTr.showsource, _("Selct this option to show the source text as well as the translated text in EPG Translator main screen show.")),
+            getConfigListEntry(_('Show traceback in errors:'), CfgPlTr.showtrace, _("This is a development feature. On a translation failure, if enabled, extra debug information will be logged.")),
         ]
         ConfigListScreen.__init__(self, list, on_change=self.UpdateComponents)
-        self['actions'] = ActionMap(['OkCancelActions', 'ColorActions'],
+        self['actions'] = ActionMap(['SetupActions'],
              {'ok': self.save,
               'cancel': self.cancel,
-              'red': self.cancel,
-              'green': self.save
+              'save': self.save
              },
             -1)
         self["key_red"] = StaticText(_("Exit"))
         self["key_green"] = StaticText(_("Save"))
         self.setTitle("EPG Translator Setup - " + EPGTrans_vers)
+        self["description"] = Label("")
+        print(dir(self))
+        self["config"].onSelectionChanged.append(self.selectionChanged)
+        self.onLayoutFinish.append(self.selectionChanged)
         self.onLayoutFinish.append(self.UpdateComponents)
+
+# ==================================================================
+
+    def selectionChanged(self):
+        self["description"].setText(self.getCurrentDescription())
 
 # ==================================================================
     def UpdateComponents(self):
@@ -554,16 +569,18 @@ Red: Refresh EPG
 
 # ==================================================================
     def __init__(self, session, text):
-        global plugin_location
-
         self.showsource = CfgPlTr.showsource.getValue()
-        if self.showsource == 'yes':    size = MySD.tMyes
-        else:                           size = MySD.tMno
+        if self.showsource == "yes":
+            size = MySD.tMyes
+        else:
+            size = MySD.tMno
 
         self.dict = {'size': size, 'plug_loc': plugin_location}
         self.skin = applySkinVars(MySD.translatorMain_skin, self.dict)
         self.session = session
         Screen.__init__(self, session)
+        if self.showsource != "yes":
+            self.skinName = ["translatorMainSingle", "translatorMain" ]
 
         self.text = text
         self.hideflag = True
@@ -879,7 +896,7 @@ Red: Refresh EPG
 #
             t_now = int(time.time())
             epg_base = t_now - 60*int(config.epg.histminutes.getValue())
-            epg_extent = 86400*14   # Get up to 14 days from now
+            epg_extent = 1440*14    # Get up to 14 days from now (minutes)
             test = [ EPG_OPTIONS, (self.My_Sref().toCompareString(), 0, epg_base, epg_extent) ]
             epgcache = eEPGCache.getInstance()
             self.list = epgcache.lookupEvent(test)
@@ -1108,10 +1125,11 @@ def My_EVB__init__(self, *args, **kwargs):
     self[which] = ActionMap(["VirtualKeyboardActions"],
            {"showVirtualKeyboard": self.EPGTr_ToggleMode})
     self[which].setEnabled(True)
+    self["key_text"] = StaticText(_("TEXT"))
 
-# Start each EventView in non-translating mode
+# Start each EventView in the user-chosen translate mode
 #
-    self.EPGTr_translating = False
+    self.EPGTr_translating = CfgPlTr.start_EV_trans.getValue()
 
 # ==================================================================
 # Start-up links (see PluginDescriptor defs)
