@@ -3,8 +3,8 @@ msgstr ""
 "Project-Id-Version: enigma2\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2018-07-30 19:14+0200\n"
-"PO-Revision-Date: 2018-10-11 00:16+0200\n"
-"Last-Translator: Manfred Aabye <openmanniland@gmx.de>\n"
+"PO-Revision-Date: 2018-11-08 17:01+0100\n"
+"Last-Translator: Koivo <koivo@hdfreaks.cc>\n"
 "Language-Team: Deutsch <> j-ot&Trial\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
@@ -132,7 +132,7 @@ msgid "If you select \"yes\" the scan will only save channels that are not encry
 msgstr "Wenn Sie \"Ja\" wählen, speichert der Scan nur Kanäle, die nicht verschlüsselt sind; \"Nein\" findet verschlüsselte und nicht verschlüsselte Kanäle."
 
 msgid "If you select \"yes\" the scan will only search transponders not listed in satellites.xml"
-msgstr "Wenn\"Ja\", werden nur Transponder gesucht, die nicht in satellites.xml stehen"
+msgstr "Wenn \"Ja\", werden nur Transponder gesucht, die nicht in satellites.xml stehen"
 
 msgid "MANUALLY start service searching, press green to change."
 msgstr "MANUELL starten die Service Suche, drücken Sie grün zum ändern."
@@ -309,6 +309,12 @@ msgstr "Sichere in XML-Datei"
 msgid "scan for channels"
 msgstr "Suche nach Sendern"
 
+msgid "scan for transponders"
+msgstr "Suche nach Transpondern"
+
+msgid "\"channel scan\" searches for channels and saves them to your receiver; \"transponder scan\" does a transponder search and displays the results allowing user to select some or all transponder. Both options save the results in satellites.xml format under /tmp"
+msgstr "\"Sender Suche\" sucht nach Sendern und speichert sie auf dem Receiver; \"Transponder Suche\" sucht nach Transpondern und zeigt das Resultat zur Auswahl an. Bei beiden Optionen werden die Ergebnisse in der satellites.xml unter /tmp gespeichert."
+
 msgid "up to 1 degree"
 msgstr "Bis zu 1 Grad"
 
@@ -389,3 +395,12 @@ msgstr ""
 "Suche abgeschlossen\n"
 "%d Transponder gefunden in %d:%02d Minuten.\n"
 "Details gespeichert in: %s"
+
+msgid "Open xml file"
+msgstr "Öffnen des XML-Files"
+
+msgid "Disable sync with known transponders"
+msgstr "Deaktivieren Sie die Synchronisierung mit bekannten Transpondern"
+
+msgid "Disable remove duplicates"
+msgstr "Deaktivieren Sie das Entfernen von Duplikaten"

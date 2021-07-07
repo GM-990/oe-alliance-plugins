@@ -28,7 +28,8 @@ config.plugins.TerrestrialScan.clearallservices = ConfigYesNo(default = True)
 config.plugins.TerrestrialScan.onlyfree = ConfigYesNo(default = True)
 config.plugins.TerrestrialScan.uhf_vhf = ConfigSelection(default = 'uhf', choices = [
 			('uhf', _("UHF Europe")),
-			('uhf_vhf', _("UHF/VHF Europe"))])
+			('uhf_vhf', _("UHF/VHF Europe")),
+			('australia', _("Australia"))])
 config.plugins.TerrestrialScan.makebouquet = ConfigYesNo(default = True)
 config.plugins.TerrestrialScan.makexmlfile = ConfigYesNo(default = False)
 
@@ -90,7 +91,7 @@ class TerrestrialScanScreen(ConfigListScreen, Screen):
 			setup_list.append(getConfigListEntry(indent + _('ONID to search'), config.plugins.TerrestrialScan.networkid,_('Enter the original network ID (ONID) of the multiplexes you wish to restrict the search to. UK terrestrial television normally ONID "9018".')))
 
 		setup_list.append(getConfigListEntry(_("Create terrestrial bouquet"), config.plugins.TerrestrialScan.makebouquet,_('If you select "yes" and LCNs are found in the NIT, the scan will create a bouquet of terrestrial channels in LCN order and add it to the bouquet list.')))
-		setup_list.append(getConfigListEntry(_("Create terrestrail.xml file"), config.plugins.TerrestrialScan.makexmlfile,_('Select "yes" to create a custom terrestrial.xml file and install it in /etc/enigma2 for system scans to use.')))
+		setup_list.append(getConfigListEntry(_("Create terrestrial.xml file"), config.plugins.TerrestrialScan.makexmlfile,_('Select "yes" to create a custom terrestrial.xml file and install it in /etc/enigma2 for system scans to use.')))
 
 		self["config"].list = setup_list
 		self["config"].l.setList(setup_list)

@@ -20,7 +20,7 @@ from enigma import eConsoleAppContainer, eActionMap, iServiceInformation, iFront
 from enigma import getDesktop, getEnigmaVersionString
 from enigma import ePicLoad, ePixmap
 
-from boxbranding import getImageDistro, getDisplayType
+from boxbranding import getImageDistro, getDisplayType, getBoxType
 from Screens.Screen import Screen
 from Plugins.Plugin import PluginDescriptor
 from Components.ActionMap import ActionMap
@@ -169,8 +169,8 @@ if getDisplayType() in ('colorlcd220'):
 	LCD4default = Data+"default.colorlcd220"
 elif getDisplayType() in ('colorlcd400'):
 	LCD4default = Data+"default.colorlcd400"
-elif getDisplayType() in ('bwlcd140'):
-	LCD4default = Data+"default.bwlcd140"
+elif getBoxType() == 'vuduo2':
+	LCD4default = Data+"default.vuduo2"
 elif getDisplayType() in ('colorlcd720'):
 	LCD4default = Data+"default.colorlcd720"
 elif getDisplayType() in ('colorlcd480'):

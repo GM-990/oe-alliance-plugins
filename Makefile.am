@@ -234,6 +234,10 @@ if H9
 SUBDIRS += MultiTransCodingSetup
 endif
 
+if H9COMBO
+SUBDIRS += MultiTransCodingSetup
+endif
+
 if HD60
 SUBDIRS += MultiTransCodingSetup
 endif
@@ -292,6 +296,14 @@ endif
 
 if VUULTIMO4K
 SUBDIRS += FirmwareUpgrade VuRemote TransCodingSetup
+endif
+
+if VUDUO4K
+SUBDIRS += FirmwareUpgrade VuRemote TransCodingSetup
+endif
+
+if V8PLUS
+SUBDIRS += MultiTransCodingSetup
 endif
 
 if GIGABLUE

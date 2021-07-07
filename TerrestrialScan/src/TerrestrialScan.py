@@ -60,6 +60,15 @@ def getChannelNumber(frequency, descr):
 		elif 470 <= f < 863: 	# IV,V
 			d = (f + 2) % 8
 			return str(int(f - 470) / 8 + 21) + (d < 3.5 and "-" or d > 4.5 and "+" or "")
+	elif descr == "australia":
+		if 174 < f < 202:	 # III: CH6-CH9
+			return str(int(f - 174) / 7 + 6)
+		elif 202 <= f < 209:	 # III: CH9A
+			return "9A"
+		elif 209 <= f < 230:	 # III: CH10-CH12
+			return str(int(f - 209) / 7 + 10)
+		elif 526 < f < 820:	 # IV, V: CH28-CH69
+			return str(int(f - 526) / 7 + 28)
 	return ""
 
 class TerrestrialScan(Screen):
@@ -125,6 +134,12 @@ class TerrestrialScan(Screen):
 			for a in range(21,70):
 				for b in (eDVBFrontendParametersTerrestrial.System_DVB_T, eDVBFrontendParametersTerrestrial.System_DVB_T2): # system
 					self.scanTransponders.append({"frequency": channel2freq(a, bandwidth), "system": b, "bandwidth": bandwidth})
+		if self.uhf_vhf == "australia":
+			bandwidth = 7
+			base_frequency = 177500000
+			for a in range(0,8) + range(50,74):
+				freq = (base_frequency + (a * bandwidth * 1000000 + (2000000 if a > 8 else 0)))
+				self.scanTransponders.append({"frequency": freq, "system": eDVBFrontendParametersTerrestrial.System_DVB_T, "bandwidth": bandwidth})
 		self.transponders_found = []
 		self.transponders_unique = {}
 		self.onClose.append(self.__onClose)
