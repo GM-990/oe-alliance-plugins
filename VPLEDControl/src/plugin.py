@@ -32,7 +32,7 @@ config.plugins.VFD_ini.ClockLevel2 = ConfigSlider(default=4, limits=(1, 10))
 
 MyRecLed = False
 use_oled = False
-if HardwareInfo().get_device_model() in ("sf8008","gbmv200"):
+if HardwareInfo().get_device_model() in ("sf8008","gbmv200","viper4k"):
 	use_oled = True
 	
 def vfd_write(text):
@@ -54,8 +54,8 @@ class Channelnumber:
 		self.sign = 0
 		self.updatetime = 10000
 		self.blink = False
-		self.blinkCounter = 0
-		self.channelnrdelay = 15
+		self.blinkCounter = 5
+		self.channelnrdelay = 10000
 		self.begin = int(time())
 		self.endkeypress = True
 		eActionMap.getInstance().bindAction('', -0x7FFFFFFF, self.keyPressed)
@@ -329,7 +329,7 @@ class VFD_INI:
 		config.misc.standbyCounter.addNotifier(standbyCounterChanged, initial_call = False)
 
 def main(menuid):
-		if getImageDistro() in ("openatv", "openvix", "openeight"):
+		if getImageDistro() in ("openatv", "openvix", "openeight", "openhdf"):
 			if menuid == "display":
 				return [(_("LED Display Setup"), startVFD, "VFD_INI", None)]
 			else:
