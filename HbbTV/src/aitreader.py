@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 import os
 import xml.dom.minidom
 import re
@@ -79,7 +80,7 @@ class eAITSectionReader:
 		document = ""
 		try:
 			document = os.popen(self.mCommand).read()
-		except Exception, ErrMsg:
+		except Exception as ErrMsg:
 			vbcfg.ERR(ErrMsg)
 			return False
 		if len(document) == 0:
@@ -92,20 +93,20 @@ class eAITSectionReader:
 		#print document
 		try:
 			self.mDocument = xml.dom.minidom.parseString(document)
-		except Exception, ErrMsg:
+		except Exception as ErrMsg:
 			vbcfg.ERR("XML parse: %s" % ErrMsg)
 			return False
 		return True
 
 	def doDump(self):
 		for x in self.getApplicationList():
-			print "Name  :", x["name"]
-			print "URL   :", x["url"]
-			print "OrgID :", x["orgid"]
-			print "AppID :", x["appid"]
-			print "Control Code :", x["control"]
-			print "Profile Code :", x["profile"]
-			print ""
+			print("Name  :", x["name"])
+			print("URL   :", x["url"])
+			print("OrgID :", x["orgid"])
+			print("AppID :", x["appid"])
+			print("Control Code :", x["control"])
+			print("Profile Code :", x["profile"])
+			print("")
 
 
 def unit_test(demux, pmtid, sid):
