@@ -206,7 +206,15 @@ if SF8008
 SUBDIRS += MultiTransCodingSetup VPLEDControl
 endif
 
+if GBMV200
+SUBDIRS += MultiTransCodingSetup
+endif
+
 if USTYM4KPRO
+SUBDIRS += MultiTransCodingSetup
+endif
+
+if BEYONWIZV2
 SUBDIRS += MultiTransCodingSetup
 endif
 
@@ -239,6 +247,10 @@ SUBDIRS += MultiTransCodingSetup
 endif
 
 if HD60
+SUBDIRS += MultiTransCodingSetup
+endif
+
+if HD61
 SUBDIRS += MultiTransCodingSetup
 endif
 
@@ -303,6 +315,10 @@ SUBDIRS += FirmwareUpgrade VuRemote TransCodingSetup
 endif
 
 if V8PLUS
+SUBDIRS += MultiTransCodingSetup
+endif
+
+if MULTIBOX
 SUBDIRS += MultiTransCodingSetup
 endif
 
