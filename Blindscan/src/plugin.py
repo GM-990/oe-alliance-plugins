@@ -25,6 +25,8 @@ from Tools.BoundFunction import boundFunction
 
 import os
 
+from filters import TransponderFiltering # imported from Blindscan folder
+
 #used for the XML file
 from time import strftime, time
 
@@ -119,7 +121,7 @@ class BlindscanState(Screen, ConfigListScreen):
 		<eLabel position="10,95" size="800,1" backgroundColor="grey"/>
 		<widget name="config" position="10,102" size="524,425" />
 		<eLabel position="544,95" size="1,435" backgroundColor="grey"/>
-		<widget name="post_action" position="554,102" size="256,140" font="Regular;19" halign="center"/>
+		<widget name="post_action" position="554,102" size="256,480" font="Regular;18" halign="center"/>
 		<widget source="key_red" render="Label" position="10,536" size="140,30" font="Regular;19" valign="center" halign="center" backgroundColor="red" foregroundColor="white"/>
 		<widget source="key_green" render="Label" position="160,536" size="140,30" font="Regular;19" valign="center" halign="center" backgroundColor="green" foregroundColor="white"/>
 		<widget source="key_yellow" render="Label" position="310,536" size="140,30" font="Regular;19" valign="center" halign="center" backgroundColor="yellow" foregroundColor="white"/>
@@ -139,16 +141,19 @@ class BlindscanState(Screen, ConfigListScreen):
 		self["key_yellow"] = StaticText("")
 		self["key_blue"] = StaticText("")
 
-		self["actions"] = ActionMap(["OkCancelActions", "ColorActions"],
+		self.configBooleanTpList = []
+		self.tp_list = []
+		ConfigListScreen.__init__(self, self.tp_list, session = self.session)
+
+		self["actions"] = ActionMap(["SetupActions"],
 		{
 			"cancel": self.keyCancel,
-			"red": self.keyCancel,
 		}, -2)
 
-		self["actions2"] = ActionMap(["OkCancelActions", "ColorActions"],
+		self["actions2"] = ActionMap(["SetupActions", "ColorActions"],
 		{
 			"ok": self.scan,
-			"green": self.scan,
+			"save": self.scan,
 			"yellow": self.selectAll,
 			"blue": self.deselectAll,
 		}, -2)
@@ -163,9 +168,6 @@ class BlindscanState(Screen, ConfigListScreen):
 			self["post_action"].setText(post_action)
 			self["actions2"].setEnabled(False)
 
-		self.configBooleanTpList = []
-		self.tp_list = []
-		ConfigListScreen.__init__(self, self.tp_list, session = self.session)
 		for t in tp_list:
 			cb = ConfigBoolean(default = False, descriptions = {False: _("don't scan"), True: _("scan")})
 			self.configBooleanTpList.append((cb, t[1]))
@@ -200,11 +202,10 @@ class BlindscanState(Screen, ConfigListScreen):
 		self.close(False)
 
 
-class Blindscan(ConfigListScreen, Screen):
+class Blindscan(ConfigListScreen, Screen, TransponderFiltering):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		self.setup_title = _("Blindscan")
-		Screen.setTitle(self, _(self.setup_title))
+		Screen.setTitle(self, _("Blindscan"))
 		self.skinName = ["BlindscanScreen", "Blindscan", "Setup"]
 		self.session.postScanService = self.session.nav.getCurrentlyPlayingServiceReference()
 
@@ -259,21 +260,20 @@ class Blindscan(ConfigListScreen, Screen):
 		ConfigListScreen.__init__(self, self.list, session = session)
 		self["footnote"] = Label("")
 		
-		self["actions"] = ActionMap(["ColorActions", "SetupActions"],
+		self["actions"] = ActionMap(["SetupActions"],
 		{
-			"red": self.keyCancel,
 			"cancel": self.keyCancel,
 		}, -2)
 
 		self["actions2"] = ActionMap(["ColorActions", "SetupActions"],
 		{
-			"green": self.keyGo,
 			"ok": self.keyGo,
+			"save": self.keyGo,
 			"blue": self.resetDefaults,
 		}, -2)
 		self["actions2"].setEnabled(False)
 
-		self["actions3"] = ActionMap(["ColorActions", "SetupActions"],
+		self["actions3"] = ActionMap(["ColorActions"],
 		{
 			"yellow": self.keyYellow,
 		}, -2)
@@ -307,16 +307,6 @@ class Blindscan(ConfigListScreen, Screen):
 	def selectionChanged(self):
 		self["description"].setText(self["config"].getCurrent() and len(self["config"].getCurrent()) > 2 and self["config"].getCurrent()[2] or "")
 		self.setBlueText()
-
-	def createSummary(self):
-		from Screens.Setup import SetupSummary
-		class SetupSummary2(SetupSummary):
-			def __init__(self, session, parent):
-				SetupSummary.__init__(self, session, parent)
-			def selectionChanged(self):
-				self["SetupEntry"].text = self.parent.getCurrentEntry()
-				self["SetupValue"].text = self.parent.getCurrentValue()
-		return SetupSummary2
 
 	def ScanNimsocket(self, filepath = '/proc/bus/nim_sockets'):
 		_nimSocket = {}
@@ -983,10 +973,10 @@ class Blindscan(ConfigListScreen, Screen):
 
 		if self.SundtekScan:
 			tmpmes = _("   Starting Sundtek hardware blind scan.")
+			self.tmpstr = tmpmes
 		else:
-			tmpmes = _("Current Status: %d/%d\nSatellite: %s\nPolarization: %s  Frequency range: %d - %d MHz  Symbol rates: %d - %d MHz") %(self.running_count, self.max_count, orb[1], display_pol, status_box_start_freq, status_box_end_freq, config.blindscan.start_symbol.value, config.blindscan.stop_symbol.value)
+			tmpmes = _("Current Status: %d/%d\nSatellite: %s\nPolarization: %s  Frequency range: %d - %d MHz  Symbol rates: %d - %d MSym/s") %(self.running_count, self.max_count, orb[1], display_pol, status_box_start_freq, status_box_end_freq, config.blindscan.start_symbol.value, config.blindscan.stop_symbol.value)
 		tmpmes2 = _("Looking for available transponders.\nThis will take a long time, please be patient.")
-		self.tmpstr = tmpmes + '\n\n' + tmpmes2 + '\n\n'
 		if is_scan:
 			self.blindscan_session = self.session.openWithCallback(self.blindscanSessionClose, BlindscanState, tmpmes, tmpmes2, [])
 		else:
@@ -1063,18 +1053,18 @@ class Blindscan(ConfigListScreen, Screen):
 					qam = { "QPSK" : parm.Modulation_QPSK,
 						"8PSK" : parm.Modulation_8PSK,
 						"16APSK" : parm.Modulation_16APSK,
+						"APSK_16" : parm.Modulation_16APSK,
+						"APSK_32" : parm.Modulation_32APSK,
 						"32APSK" : parm.Modulation_32APSK}
 					parm.orbital_position = self.orb_position
 					parm.polarisation = self.Sundtek_pol
-					frequency = ((int(data[2]) + self.offset) / 1000) * 1000
-					parm.frequency = frequency
-					symbol_rate = int(data[3]) * 1000
-					parm.symbol_rate = symbol_rate
+					parm.frequency = ((int(data[2]) + self.offset) / 1000) * 1000
+					parm.symbol_rate = int(data[3]) * 1000
 					parm.system = sys[data[1]]
 					parm.inversion = parm.Inversion_Off
 					parm.pilot = parm.Pilot_Off
 					parm.fec = parm.FEC_Auto
-					parm.modulation = qam[data[4]]
+					parm.modulation = qam.get(data[4], eDVBFrontendParametersSatellite.Modulation_QPSK)
 					parm.rolloff = parm.RollOff_alpha_0_35
 					parm.pls_mode = eDVBFrontendParametersSatellite.PLS_Gold
 					parm.is_id = eDVBFrontendParametersSatellite.No_Stream_Id_Filter
@@ -1157,35 +1147,16 @@ class Blindscan(ConfigListScreen, Screen):
 		print "[Blindscan][blindscanContainerAvail]", str
 		self.full_data = self.full_data + str # TODO: is this the cause of the duplicates in blindscanContainerClose?
 		if self.blindscan_session:
-			tmpstr = ""
-			data = str.split()
 			if self.SundtekScan:
-				if len(data) == 3 and data[0] == 'Scanning':
-					if data[1] == '13V':
-						self.Sundtek_pol = "V"
-						if int(config.blindscan.polarization.value) not in self.linear_polarisations:
-							self.Sundtek_pol = "R"
-					elif data[1] == '18V':
-						self.Sundtek_pol = "H"
-						if int(config.blindscan.polarization.value) not in self.linear_polarisations:
-							self.Sundtek_pol = "L"
-					if data[2] == 'Highband':
-						self.Sundtek_band = "high"
-					elif data[2] == 'Lowband':
-						self.Sundtek_band = "low"
-					self.offset = 0
-					if self.is_c_band_scan:
-						self.offset = self.c_band_lo_freq * 1000
-					else:
-						if self.Sundtek_band == "high":
-							self.offset = self.universal_lo_freq["high"] * 1000
-						elif self.Sundtek_band == "low":
-							self.offset = self.universal_lo_freq["low"] * 1000
+				data = str.split()
+				if 'Scanning' in data:
 					self.tp_found.append(str)
 					seconds_done = int(time() - self.start_time)
-					tmpstr += '\n'
-					tmpstr += _("Step %d %d:%02d min") %(len(self.tp_found),seconds_done / 60, seconds_done % 60)
-					self.blindscan_session["text"].setText(self.tmpstr + tmpstr)
+					tmpstr = "\n" + str + _("Step %d %d:%02d min") %(len(self.tp_found),seconds_done / 60, seconds_done % 60)
+					self.blindscan_session["progress"].setText(self.tmpstr + tmpstr)
+				if len(data) >= 6 and data[0] == 'OK':
+					self.blindscan_session["post_action"].setText(str)
+
 
 	def blindscanSessionNone(self, *val):
 		import time
@@ -1218,9 +1189,6 @@ class Blindscan(ConfigListScreen, Screen):
 		self["key_yellow"].setText("")
 		XML_FILE = None
 		self["actions3"].setEnabled(False)
-
-		if self.SundtekScan:
-			self.frontend and self.frontend.closeFrontend()
 
 		self.blindscanSessionNone(val[0])
 
@@ -1308,8 +1276,6 @@ class Blindscan(ConfigListScreen, Screen):
 
 		tlist = retval[1]
 		networkid = 0
-		self.scan_session = None
-
 		flags = 0
 		tmp = config.blindscan.clearallservices.value
 		if tmp == "no":
@@ -1322,121 +1288,6 @@ class Blindscan(ConfigListScreen, Screen):
 		if config.blindscan.onlyFTA.value:
 			flags |= eComponentScan.scanOnlyFree
 		self.session.openWithCallback(self.startScanCallback, ServiceScan, [{"transponders": tlist, "feid": self.feid, "flags": flags, "networkid": networkid}])
-
-	def getKnownTransponders(self, pos):
-		tlist = []
-		list = nimmanager.getTransponders(pos)
-		for x in list:
-			if x[0] == 0:
-				parm = eDVBFrontendParametersSatellite()
-				parm.frequency = x[1]
-				parm.symbol_rate = x[2]
-				parm.polarisation = x[3]
-				parm.fec = x[4]
-				parm.inversion = x[7]
-				parm.orbital_position = pos
-				parm.system = x[5]
-				parm.modulation = x[6]
-				parm.rolloff = x[8]
-				parm.pilot = x[9]
-				if len(x) > 12:
-					parm.is_id = x[10]
-					parm.pls_mode = x[11]
-					parm.pls_code = x[12]
-					if hasattr(parm, "t2mi_plp_id") and len(x) > 13:
-						parm.t2mi_plp_id = x[13]
-						if hasattr(parm, "t2mi_pid") and len(x) > 14:
-							parm.t2mi_pid = x[14]
-				tlist.append(parm)
-		return tlist
-
-	def syncWithKnownTransponders(self, tplist, knowntp):
-		tolerance = 5
-		multiplier = 1000
-		x = 0
-		for t in tplist:
-			found = False
-			for k in knowntp:
-				if hasattr(t, "t2mi_plp_id"):
-					t2mi_check = t.t2mi_plp_id == eDVBFrontendParametersSatellite.No_T2MI_PLP_Id or t.t2mi_plp_id == k.t2mi_plp_id
-				else:
-					t2mi_check = True # skip check
-				if (t.polarisation % 2) == (k.polarisation % 2) and \
-					abs(t.frequency - k.frequency) < (tolerance*multiplier) and \
-					abs(t.symbol_rate - k.symbol_rate) < (tolerance*multiplier) and \
-					t.is_id == k.is_id and t.pls_code == k.pls_code and t.pls_mode == k.pls_mode and \
-					t2mi_check:
-					tplist[x] = k
-					found = True
-					break
-			if not found:
-				self.tweakSR(t)
-			x += 1
-		return tplist
-
-	def removeDuplicateTransponders(self, tplist):
-		new_tplist = []
-		tolerance = 5
-		multiplier = 1000
-		for i in range(len(tplist)):
-			t = tplist[i]
-			found = False
-			for k in tplist[i+1:]:
-				if hasattr(t, "t2mi_plp_id"):
-					t2mi_check = t.t2mi_plp_id == eDVBFrontendParametersSatellite.No_T2MI_PLP_Id or t.t2mi_plp_id == k.t2mi_plp_id
-				else:
-					t2mi_check = True # skip check
-				if (t.polarisation % 2) == (k.polarisation % 2) and \
-					abs(t.frequency - k.frequency) < (tolerance*multiplier) and \
-					abs(t.symbol_rate - k.symbol_rate) < (tolerance*multiplier) and \
-					t.is_id == k.is_id and t.pls_code == k.pls_code and t.pls_mode == k.pls_mode and \
-					t2mi_check:
-					found = True
-					break
-			if not found:
-				new_tplist.append(t)
-		return new_tplist
-
-	def removeKnownTransponders(self, tplist, knowntp):
-		new_tplist = []
-		tolerance = 5
-		multiplier = 1000
-		for t in tplist:
-			isnt_known = True
-			for k in knowntp:
-				if hasattr(t, "t2mi_plp_id"):
-					t2mi_check = t.t2mi_plp_id == eDVBFrontendParametersSatellite.No_T2MI_PLP_Id or t.t2mi_plp_id == k.t2mi_plp_id
-				else:
-					t2mi_check = True # skip check
-				if (t.polarisation % 2) == (k.polarisation % 2) and \
-					abs(t.frequency - k.frequency) < (tolerance*multiplier) and \
-					abs(t.symbol_rate - k.symbol_rate) < (tolerance*multiplier) and \
-					t.is_id == k.is_id and t.pls_code == k.pls_code and t.pls_mode == k.pls_mode and \
-					t2mi_check:
-					isnt_known = False
-					break
-			if isnt_known:
-				self.tweakSR(t)
-				new_tplist.append(t)
-		return new_tplist
-
-	def tweakSR(self, t):
-		pull_sr_max = 4 
-		lowest_sr_to_adjust = 4996
-		multiplier = 1000
-		# Cosmetic: tweak symbol rates to nearest multiple of 100 if this is closer than "pull_sr_max" away and t.symbol_rate > lowest_sr_to_adjust
-		if t.symbol_rate > (lowest_sr_to_adjust*multiplier) and abs(t.symbol_rate - int(round(t.symbol_rate, -5))) <= (pull_sr_max*multiplier):
-			t.symbol_rate = int(round(t.symbol_rate, -5))
-
-	def filterOffAdjacentSatellites(self, tplist, pos, degrees):
-		neighbours = []
-		tenths_of_degrees = degrees * 10
-		for sat in nimmanager.satList:
-			if sat[0] != pos and self.positionDiff(pos, sat[0]) <= tenths_of_degrees:
-				neighbours.append(sat[0])
-		for neighbour in neighbours:
-			tplist = self.removeKnownTransponders(tplist, self.getKnownTransponders(neighbour))
-		return tplist
 
 	def correctBugsCausedByDriver(self, tplist):
 		multiplier = 1000
@@ -1470,10 +1321,6 @@ class Blindscan(ConfigListScreen, Screen):
 					tplist[x].polarisation = eDVBFrontendParametersSatellite.Polarisation_CircularRight
 			x += 1
 		return tplist
-
-	def positionDiff(self, pos1, pos2):
-		diff = pos1 - pos2
-		return min(abs(diff % 3600), 3600 - abs(diff % 3600))
 
 	def dataIsGood(self, data): # check output of the binary for nonsense values
 		lower_freq = self.thisRun[0]

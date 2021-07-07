@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = Blindscan DLNABrowser DLNAServer StreamTV 3GModemManager TunerServer OnDemand Fempa LCD4linux RemoteChannelStreamConverter BTDevicesManager SatipClient TerrestrialScan ChannelsImporter ABMCustomMixImporter xmlUpdate MisPlsLcnScan
+SUBDIRS = ABMCustomMixImporter AboutBoxBranding Blindscan BTDevicesManager ChannelsImporter DLNABrowser DLNAServer EPGTranslator Fempa LCD4linux OnDemand RemoteChannelStreamConverter SatipClient StreamTV TunerServer xmlUpdate 3GModemManager
 
 if MIPSEL
 SUBDIRS += WirelessAccessPoint
@@ -323,6 +323,10 @@ SUBDIRS += FirmwareUpgrade VuRemote TransCodingSetup
 endif
 
 if VUDUO4K
+SUBDIRS += FirmwareUpgrade VuRemote TransCodingSetup
+endif
+
+if VUDUO4KSE
 SUBDIRS += FirmwareUpgrade VuRemote TransCodingSetup
 endif
 
